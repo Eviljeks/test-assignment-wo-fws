@@ -1,4 +1,4 @@
-FROM php:7.4
+FROM php:8.2
 
 RUN apt-get update && apt-get install --no-install-recommends --no-install-suggests -y \
 		git \
