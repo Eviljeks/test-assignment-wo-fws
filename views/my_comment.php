@@ -18,7 +18,7 @@ declare(strict_types=1);
         <p>Text: <?php echo $data['comment']->getText(); ?></p>
         <p>----------------------------------------</p>
     </div>
-    <a href="form.php">To form with comments...</a>
+    <a href="all_comments.php">To all comments...</a>
 </div>
 </body>
 </html>

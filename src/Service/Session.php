@@ -22,4 +22,9 @@ final class Session
     {
         $_SESSION[$this->tokenFieldName] = $token;
     }
+
+    public function start()
+    {
+        session_start();
+    }
 }

@@ -8,6 +8,7 @@ use App\Controller\GetCommentsController;
 use App\Controller\SaveCommentController;
 use App\Exception\HttpException;
 use App\Exception\InternalServerErrorHttpException;
+use App\Exception\MethodNotAllowedHttpException;
 use App\Service\CommentRepository;
 use App\Service\CommentSender\MailSender;
 use App\Service\CommentSender\SMSSender;
@@ -34,33 +35,83 @@ final class Kernel
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         ]);
 
-        session_start();
-
         $renderer = new Renderer(__DIR__ . '/../views');
         $commentRepo = new CommentRepository($pdo);
         $session = new Session($this->config['CSRF_TOKEN_SESSION_KEY']);
 
-        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-            $controller = new GetCommentsController(
-                $renderer,
-                new GetCommentsHandler($commentRepo),
-                $session,
-                new CSRFTokenGenerator($this->config['CSRF_TOKEN_SALT']),
-            );
-        } else {
-            $controller = new SaveCommentController(
-                $renderer,
-                new SaveCommentHandler($commentRepo, new SMSSender(), new MailSender()),
-                $session,
-            );
-        }
+        $session->start();
 
         try {
-            $controller();
+            $controller = $this->resolveController($renderer, $commentRepo, $session);
+            $controller()();
         } catch (HttpException $e) {
-            $renderer->render('error', ['exception' => $e]);
+            $this->handleException($renderer, $e);
         } catch (\Throwable $e) {
-            $renderer->render('error', ['exception' => new InternalServerErrorHttpException()]);
+            $exception = new InternalServerErrorHttpException();
+            $this->handleException($renderer, $exception);
         }
+    }
+
+    /**
+     * @param Renderer $renderer
+     * @param CommentRepository $commentRepo
+     * @param Session $session
+     */
+    private function resolveController
+    (
+        Renderer $renderer,
+        CommentRepository $commentRepo,
+        Session $session
+    ): callable {
+        $routes = [
+            '/all_comments.php' => [
+                'GET' => fn (): callable => new GetCommentsController(
+                    $renderer,
+                    new GetCommentsHandler($commentRepo),
+                    $session,
+                    new CSRFTokenGenerator($this->config['CSRF_TOKEN_SALT']),
+                ),
+            ],
+            '/' => [
+                'GET' => fn (): callable => new GetCommentsController(
+                    $renderer,
+                    new GetCommentsHandler($commentRepo),
+                    $session,
+                    new CSRFTokenGenerator($this->config['CSRF_TOKEN_SALT']),
+                ),
+            ],
+            '/my_comment.php' => [
+                'POST' => fn (): callable => new SaveCommentController(
+                    $renderer,
+                    new SaveCommentHandler($commentRepo, new SMSSender(), new MailSender()),
+                    $session,
+                ),
+            ],
+        ];
+
+        $reqUri = $_SERVER['REQUEST_URI'];
+        $reqMethod = $_SERVER['REQUEST_METHOD'];
+
+        foreach ($routes as $uri => $methods) {
+            if ($uri !== $reqUri) {
+                continue;
+            }
+
+            foreach ($methods as $method => $callable) {
+                if ($method !== $reqMethod) {
+                    continue;
+                }
+
+                return $callable;
+            }
+        }
+
+        throw new MethodNotAllowedHttpException();
+    }
+
+    private function handleException(Renderer $renderer, HttpException $e): void
+    {
+        http_response_code($e->getCode());
+        $renderer->render('error', ['exception' => $e]);
     }
 }

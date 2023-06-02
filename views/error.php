@@ -12,5 +12,6 @@ declare(strict_types=1);
 <p>
     <?php echo $data['exception']->getCode(); ?>: <?php echo $data['exception']->getMessage(); ?>
 </p>
+<a href="all_comments.php">To all comments...</a>
 </body>
 </html>

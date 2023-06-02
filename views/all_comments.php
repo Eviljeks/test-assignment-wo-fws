@@ -12,7 +12,7 @@ use App\Model\Comment;
     <title>Form</title>
 </head>
 <body>
-<form action="all_comments.php" method="post">
+<form action="my_comment.php" method="post">
     <input type="hidden" name="csrf_token" value="<?php echo $data['csrf_token'];?>">
     <label for="text">
         Type some text!
